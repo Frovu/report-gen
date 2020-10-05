@@ -31,6 +31,6 @@ project
 ### Advices
 1. Carefully check output before sending it somewhere.
 2. TOC won't work
-3.
+3. Note that images are usually rendered bad af so you are able to add your own screenshots into /img directory near script.
 
 see https://github.com/Frovu/mirea-frontend for full target example
