@@ -1,23 +1,9 @@
 #!/usr/bin/python
+
 import imgkit
-import pdfkit
 import os
 import sys
 from pwn import log
-
-opt = {
-	'quiet': '',
-	'enable-local-file-access': ''
-}
-pdfopt = dict(opt)
-pdfopt.update({
-	'page-size': 'A4',
-    'margin-top': '2cm',
-    'margin-bottom': '2cm',
-    'margin-left': '3cm',
-    'margin-right': '1cm',
-    'encoding': 'UTF-8'
-})
 
 def clean():
 	if os.path.exists('img'):
@@ -29,9 +15,10 @@ def gen_image(path):
 	css = [f for f in files if f.endswith('.css')]
 	fp = os.path.join(path, 'index.html')
 	try:
-		imgkit.from_file(fp, os.path.join('img', f'{path.split("/")[-1]}.jpg'), options=opt, css=css)
+		imgkit.from_file(fp, os.path.join('img', f'{path.split("/")[-1]}.jpg'),
+			options={'quiet': '', 'enable-local-file-access': ''}, css=css)
 	except Exception as e:
-		log.warn(f'exception in rendering {path.split("/")[-1]} html')
+		log.warn(f'exception in rendering {path.split("/")[-1]} html \n{e}')
 
 def read_tasks(path):
 	task = []
@@ -70,7 +57,7 @@ def build_all(path, overwrite=False):
 			for f in os.listdir(dp):
 				if f.split('.')[-1] in ['html', 'js', 'css']:
 					with open(os.path.join(dirpath, d, f)) as file:
-						code.append((f, to_html(file.read())))
+						code.append((f, file.read()))
 			codes.append(code)
 			lp.success('done.')
 		break
@@ -81,84 +68,67 @@ from docx.shared import Cm, Pt
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.style import WD_STYLE_TYPE
 
-document = Document()
-style = document.styles['Normal']
-font = style.font
-font.name = 'Times New Roman'
-font.size = Pt(12)
-
-def add_toc(document):
-	# https://stackoverflow.com/questions/18595864/python-create-a-table-of-contents-with-python-docx-lxml
-	ptitle = document.add_paragraph()
-	ptitle.add_run('Оглавление').bold = True
-	ptitle.align = WD_ALIGN_PARAGRAPH.CENTER
-
-	paragraph = document.add_paragraph()
-	#ptitile = paragraph.add_run('Оглавление')
-	#ptitile.align = WD_ALIGN_PARAGRAPH.CENTER
-	run = paragraph.add_run()
-	fldChar = OxmlElement('w:fldChar')  # creates a new element
-	fldChar.set(qn('w:fldCharType'), 'begin')  # sets attribute on element
-	instrText = OxmlElement('w:instrText')
-	instrText.set(qn('xml:space'), 'preserve')  # sets attribute on element
-	instrText.text = 'TOC \\o "1-3" \\h \\z \\u'   # change 1-3 depending on heading levels you need
-
-	fldChar2 = OxmlElement('w:fldChar')
-	fldChar2.set(qn('w:fldCharType'), 'separate')
-	fldChar3 = OxmlElement('w:t')
-	fldChar3.text = "Right-click to update field."
-	fldChar2.append(fldChar3)
-
-	fldChar4 = OxmlElement('w:fldChar')
-	fldChar4.set(qn('w:fldCharType'), 'end')
-
-	r_element = run._r
-	r_element.append(fldChar)
-	r_element.append(instrText)
-	r_element.append(fldChar2)
-	r_element.append(fldChar4)
+document = Document('template.docx')
+heading = document.styles.add_style('Heading 2', WD_STYLE_TYPE.PARAGRAPH, True)
+heading.font.name = 'Times New Roman'
+heading.font.bold = True
+heading.font.size = Pt(14)
+code_style = document.styles.add_style('Code', WD_STYLE_TYPE.PARAGRAPH)
+code_style.font.name = 'Courier New'
+code_style.font.size = Pt(10)
+def_style = document.styles.add_style('Default', WD_STYLE_TYPE.PARAGRAPH)
+def_style.font.name = 'Times New Roman'
+def_style.font.size = Pt(14)
+#def_style.paragraph_format.left_indent = Cm(1)
+def_style.paragraph_format.line_spacing = Pt(24)
+def_style.paragraph_format.space_after = Pt(12)
 
 def build_report(path):
-	add_toc(document)
-	#Giving headings that need to be included in Table of contents
-
-	document.add_heading("Network Connectivity")
-	document.add_heading("Weather Stations")
-
-	document.save('demo.docx')
-	"""codes = build_all(path, len(sys.argv) > 1 and sys.argv[1] == 'rebuild')
-	with open('template.html') as f:
-		doc = f.read()
-	html = ''
+	codes = build_all(path, len(sys.argv) > 2 and sys.argv[2] == 'rebuild')
 	images = os.listdir('img')
 	tasks = read_tasks(os.path.join(path, 'task.html'))
 	log.info(f'images amount = {len(images)}')
 	log.info(f'tasks amount = {len(tasks)}')
 	lp = log.progress('generatig document')
+
 	for i, task in enumerate(tasks):
-		html += f'<h3 class="new-page">{task[0]}</h3>\n<p><b>Задание:</b><br>\n{task[1]}<br>\n'
+		document.add_heading(task[0], 2)
+		document.add_paragraph()
+		p = document.add_paragraph(style='Default')
+		p.paragraph_format.first_line_indent = Cm(1.25)
+		p.add_run('Задание:').bold = True
+		p = document.add_paragraph(style='Default')
+		p.paragraph_format.first_line_indent = Cm(1.25)
+		p.add_run(task[1])
+		p = document.add_paragraph(style='Default')
+		p.add_run('Описание выполнения задания').bold = True
+		p = document.add_paragraph('TODO', style='List Paragraph')
+		p.paragraph_format.line_spacing = Pt(24)
+		p.style.font.size = Pt(14)
 		for ci, c in enumerate(codes[i]):
-			part = f''
-			html += f'<p>Листинг {i+1}.{ci+1} – {c[0]} <br><p><a>{c[1]}</a></p></p>'
+			document.add_paragraph(f'Листинг {i+1}.{ci+1} – {c[0]}', style='Default')
+			document.add_paragraph(c[1], style='Code')
 		image = next((a for a in images if str(i+1) in a), None)
 		if image:
-			html += f'<p><img align="center" src=\"{os.path.join("img", image)}\"><br>\n'
-			html += f'Рисунок {i+1} - Результат выполнения кода на странице</p>'
+			ipr = document.add_paragraph().add_run()
+			ipr.add_picture(os.path.join("img", image), width=Cm(16))
+			p = document.add_paragraph(f'Рисунок {i+1} - Результат выполнения кода на странице')
+			p.style = 'Default'
+			p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 		else:
 			log.warn(f'image not found for task {str(i+1)}')
-		html += '</p>\n'
+		document.add_page_break()
 	lp.success('done!')
-	lp = log.progress('converting to pdf')
-	doc = doc.replace('#tasks', html)
-	with open('out.html', 'w') as f:
-		f.write(doc)
-	pdfkit.from_file('out.html', 'out.pdf', options=pdfopt, toc={})
-	lp.success('done!')"""
+	document.save('output.docx')
 
+sys.argv.append('../../rtu/mirea-frontend/p1') # TODO remove
 
-if len(sys.argv) > 1 and sys.argv[1] == 'clean':
+if len(sys.argv) == 1:
+	print(f'Usage: {sys.argv[0]} <path>|clean [rebuild]')
+elif sys.argv[1] == 'clean':
 	clean()
 else:
-	build_report('./mirea-frontend/p1')
+	build_report(sys.argv[1])
 	
