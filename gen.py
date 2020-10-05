@@ -3,7 +3,6 @@
 import imgkit
 import os
 import sys
-from pwn import log
 
 def clean():
 	if os.path.exists('img'):
@@ -18,27 +17,25 @@ def gen_image(path):
 		imgkit.from_file(fp, os.path.join('img', f'{path.split("/")[-1]}.jpg'),
 			options={'quiet': '', 'enable-local-file-access': ''}, css=css)
 	except Exception as e:
-		log.warn(f'exception in rendering {path.split("/")[-1]} html \n{e}')
+		print(f'exception in rendering {path.split("/")[-1]} html \n{e}')
 
 def read_tasks(path):
 	task = []
 	with open(path) as f:
 		for part in f.read().split('<h3>')[1:]:
-			task.append([a.strip() for a in part.split('</h3>')])
+			task.append([from_html(a.strip()) for a in part.split('</h3>')])
 	return task
 
 text_to_html = {
 	'&': '&amp;',
 	'<': '&lt;',
 	'>': '&gt;',
-	' ': '&nbsp;',
-	'\t': '&emsp;',
 	'\n': '<br>'
 }
-def to_html(text):
+def from_html(text):
 	newtext = text
 	for i in text_to_html:
-		newtext = newtext.replace(i, text_to_html[i])
+		newtext = newtext.replace(text_to_html[i], i)
 	return newtext
 
 def build_all(path, overwrite=False):
@@ -50,7 +47,7 @@ def build_all(path, overwrite=False):
 		dirnames.sort(key=lambda x: int(x.split('task')[1]))
 		for d in dirnames:
 			dp = os.path.join(dirpath, d)
-			lp = log.progress(f'building {d}')
+			print(f'building {d}...', end='', flush=True)
 			if overwrite or f'{d}.jpg' not in images:
 				gen_image(dp)
 			code = []
@@ -59,7 +56,7 @@ def build_all(path, overwrite=False):
 					with open(os.path.join(dirpath, d, f)) as file:
 						code.append((f, file.read()))
 			codes.append(code)
-			lp.success('done.')
+			print('done')
 		break
 	return codes
 
@@ -89,9 +86,9 @@ def build_report(path):
 	codes = build_all(path, len(sys.argv) > 2 and sys.argv[2] == 'rebuild')
 	images = os.listdir('img')
 	tasks = read_tasks(os.path.join(path, 'task.html'))
-	log.info(f'images amount = {len(images)}')
-	log.info(f'tasks amount = {len(tasks)}')
-	lp = log.progress('generatig document')
+	print(f'images amount = {len(images)}')
+	print(f'tasks amount = {len(tasks)}')
+	print('generatig document..')
 
 	for i, task in enumerate(tasks):
 		document.add_heading(task[0], 2)
@@ -118,12 +115,10 @@ def build_report(path):
 			p.style = 'Default'
 			p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 		else:
-			log.warn(f'image not found for task {str(i+1)}')
+			print(f'image not found for task {str(i+1)}')
 		document.add_page_break()
-	lp.success('done!')
+	print('done!')
 	document.save('output.docx')
-
-sys.argv.append('../../rtu/mirea-frontend/p1') # TODO remove
 
 if len(sys.argv) == 1:
 	print(f'Usage: {sys.argv[0]} <path>|clean [rebuild]')
@@ -131,4 +126,3 @@ elif sys.argv[1] == 'clean':
 	clean()
 else:
 	build_report(sys.argv[1])
-	
