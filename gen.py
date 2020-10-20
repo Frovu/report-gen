@@ -27,15 +27,16 @@ def read_tasks(path):
 	return task
 
 text_to_html = {
-	'&': '&amp;',
-	'<': '&lt;',
-	'>': '&gt;',
-	'\n': '<br>'
+	'&': ['&amp;'],
+	'<': ['&lt;', '&lt'],
+	'>': ['&gt;', '&gt'],
+	'\n': ['<br>']
 }
 def from_html(text):
 	newtext = text
 	for i in text_to_html:
-		newtext = newtext.replace(text_to_html[i], i)
+		for j in text_to_html[i]:
+			newtext = newtext.replace(j, i)
 	return newtext
 
 def build_all(path, overwrite=False):
@@ -104,16 +105,17 @@ def build_report(path):
 		p = document.add_paragraph('TODO', style='List Paragraph')
 		p.paragraph_format.line_spacing = Pt(24)
 		p.style.font.size = Pt(14)
-		for ci, c in enumerate(codes[i]):
-			document.add_paragraph(f'Листинг {i+1}.{ci+1} – {c[0]}', style='Default')
-			document.add_paragraph(c[1], style='Code')
-		image = next((a for a in images if str(i+1) in a), None)
+		if i < len(codes):
+			for ci, c in enumerate(codes[i]):
+				document.add_paragraph(f'Листинг {i+1}.{ci+1} – {c[0]}', style='Default')
+				document.add_paragraph(c[1], style='Code')
+		image = next((a for a in images if f"task{str(i+1)}." in a), None)
 		if image:
 			ipr = document.add_paragraph().add_run()
 			ipr.add_picture(os.path.join("img", image), width=Cm(16))
-			p = document.add_paragraph(f'Рисунок {i+1} - Результат выполнения кода на странице')
-			p.style = 'Default'
-			p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+		p = document.add_paragraph(f'Рисунок {i+1} - Результат выполнения кода на странице')
+		p.style = 'Default'
+		p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 		else:
 			print(f'image not found for task {str(i+1)}')
 		document.add_page_break()
