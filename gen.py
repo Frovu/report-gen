@@ -91,6 +91,10 @@ def build_report(path):
 	print(f'tasks amount = {len(tasks)}')
 	print('generatig document..')
 
+	try:
+		add = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+	except:
+		add = 0 
 	for i, task in enumerate(tasks):
 		document.add_heading(task[0], 2)
 		document.add_paragraph()
@@ -107,7 +111,7 @@ def build_report(path):
 		p.style.font.size = Pt(14)
 		if i < len(codes):
 			for ci, c in enumerate(codes[i]):
-				document.add_paragraph(f'Листинг {i+1}.{ci+1} – {c[0]}', style='Default')
+				document.add_paragraph(f'Листинг {add+i+1}.{ci+1} – {c[0]}', style='Default')
 				document.add_paragraph(c[1], style='Code')
 		image = next((a for a in images if f"task{str(i+1)}." in a), None)
 		if image:
@@ -115,7 +119,7 @@ def build_report(path):
 			ipr.add_picture(os.path.join("img", image), width=Cm(16))
 		else:
 			print(f'image not found for task {str(i+1)}')
-		p = document.add_paragraph(f'Рисунок {i+1} - Результат выполнения кода на странице')
+		p = document.add_paragraph(f'Рисунок {add+i+1} - Результат выполнения кода на странице')
 		p.style = 'Default'
 		p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 		document.add_page_break()
@@ -123,7 +127,7 @@ def build_report(path):
 	document.save('output.docx')
 
 if len(sys.argv) == 1:
-	print(f'Usage: {sys.argv[0]} <path>|clean [rebuild]')
+	print(f'Usage: {sys.argv[0]} <path>|clean [rebuild|<add number>]')
 elif sys.argv[1] == 'clean':
 	clean()
 else:
