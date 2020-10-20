@@ -113,11 +113,11 @@ def build_report(path):
 		if image:
 			ipr = document.add_paragraph().add_run()
 			ipr.add_picture(os.path.join("img", image), width=Cm(16))
+		else:
+			print(f'image not found for task {str(i+1)}')
 		p = document.add_paragraph(f'Рисунок {i+1} - Результат выполнения кода на странице')
 		p.style = 'Default'
 		p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-		else:
-			print(f'image not found for task {str(i+1)}')
 		document.add_page_break()
 	print('done!')
 	document.save('output.docx')
